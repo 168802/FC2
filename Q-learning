@@ -1,0 +1,57 @@
+import numpy as np
+import gym
+
+# Definición de las variables necesarias para el entorno CartPole-v1
+env = gym.make("CartPole-v1")
+n_actions = env.action_space.n
+n_states = env.observation_space.shape[0]
+
+# Inicialización de las variables de transición y recompensa
+transition_probabilities = np.zeros((n_states, n_actions, n_states))
+rewards = np.zeros((n_states, n_actions, n_states))
+
+# Definición de las posibles acciones para cada estado
+possible_actions = [list(range(n_actions)) for _ in range(n_states)]
+
+# Función para realizar una acción y obtener el nuevo estado y la recompensa
+def step(state, action):
+    probas = transition_probabilities[state][action]
+    next_state = np.random.choice(range(n_states), p=probas)
+    reward = rewards[state][action][next_state]
+    return next_state, reward
+
+# Política de exploración aleatoria
+def exploration_policy(state):
+    return np.random.choice(possible_actions[state])
+
+# Inicialización de los Q-Values
+np.random.seed(42)
+Q_values = np.full((n_states, n_actions), -np.inf)
+for state, actions in enumerate(possible_actions):
+    Q_values[state][actions] = 0
+
+# Parámetros de Q-Learning
+alpha0 = 0.05  # tasa de aprendizaje inicial
+decay = 0.005  # decaimiento de la tasa de aprendizaje
+gamma = 0.90  # factor de descuento
+state = env.reset()
+
+# Entrenamiento con Q-Learning
+iterations_until_learning = None
+for iteration in range(10_000):
+    action = exploration_policy(state)
+    next_state, reward = step(state, action)
+    next_value = np.max(Q_values[next_state])
+    alpha = alpha0 / (1 + iteration * decay)
+    Q_values[state, action] *= 1 - alpha
+    Q_values[state, action] += alpha * (reward + gamma * next_value)
+    state = next_state
+    if np.max(Q_values) > 0:  # si se aprendió algo
+        iterations_until_learning = iteration + 1
+        break
+
+# Mostrar la cantidad de iteraciones necesarias para aprender
+if iterations_until_learning is not None:
+    print(f"El carro aprendió a mantener el poste en posición vertical después de {iterations_until_learning} iteraciones.")
+else:
+    print("El carro no aprendió a mantener el poste en posición vertical después de 10,000 iteraciones.")
